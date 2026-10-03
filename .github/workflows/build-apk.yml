@@ -32,23 +32,16 @@ jobs:
 
       - name: Install Android SDK
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.1.0"
-
-      - name: Install Gradle 9.3.1
-        run: |
-          curl -L \
-            https://services.gradle.org/distributions/gradle-9.3.1-bin.zip \
-            -o /tmp/gradle.zip
-
-          sudo unzip -q /tmp/gradle.zip -d /opt
-
-          echo "/opt/gradle-9.3.1/bin" >> "$GITHUB_PATH"
+          yes | sdkmanager --licenses
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36.1" \
+            "build-tools;36.0.0"
 
       - name: Verify Build Environment
         run: |
           java -version
-          gradle --version
+          ./gradlew --version
           adb version
           sdkmanager --list_installed
 
@@ -58,7 +51,7 @@ jobs:
             -v \
             -keystore "$GITHUB_WORKSPACE/release-keystore.jks" \
             -storetype JKS \
-            -alias radius-order \
+            -alias upload \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
@@ -72,17 +65,17 @@ jobs:
           STORE_PASSWORD: radiusorder123
           KEY_PASSWORD: radiusorder123
         run: |
-          gradle --no-daemon clean assembleRelease
+          ./gradlew --no-daemon clean assembleRelease
 
       - name: Prepare Final APK
         run: |
           mkdir -p release
 
           cp app/build/outputs/apk/release/app-release.apk \
-             release/radius-order-final.apk
+            release/radius-order-final.apk
 
           sha256sum release/radius-order-final.apk \
-             > release/SHA256SUMS.txt
+            > release/SHA256SUMS.txt
 
           ls -lh release/
 
@@ -111,10 +104,11 @@ jobs:
             Final Android APK release.
 
             ## APK
-            `radius-order-final.apk`
+            radius-order-final.apk
 
             ## Build
-            - Android SDK 36
+            - Android SDK 36.1
+            - Build Tools 36.0.0
             - Gradle 9.3.1
             - JDK 17
             - Release build
