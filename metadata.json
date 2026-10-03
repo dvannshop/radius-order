@@ -1,0 +1,7 @@
+{
+  "name": "NetPulse - Signal & GPS Booster",
+  "description": "Aplikasi pengoptimal jaringan sinyal, stabilisator ping terus menerus, pengunci akurasi GPS real-time, speed test, dan dashboard statistik ramah baterai.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
