@@ -1,0 +1,120 @@
+name: Build Radius Order APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.1.0"
+
+      - name: Install Gradle 9.3.1
+        run: |
+          curl -L \
+            https://services.gradle.org/distributions/gradle-9.3.1-bin.zip \
+            -o /tmp/gradle.zip
+
+          sudo unzip -q /tmp/gradle.zip -d /opt
+
+          echo "/opt/gradle-9.3.1/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Build Environment
+        run: |
+          java -version
+          gradle --version
+          adb version
+          sdkmanager --list_installed
+
+      - name: Generate CI Release Keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore "$GITHUB_WORKSPACE/release-keystore.jks" \
+            -storetype JKS \
+            -alias radius-order \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass radiusorder123 \
+            -keypass radiusorder123 \
+            -dname "CN=Radius Order, OU=DVAN Shop, O=DVAN Shop, L=Cikarang, ST=West Java, C=ID"
+
+      - name: Build Release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
+          STORE_PASSWORD: radiusorder123
+          KEY_PASSWORD: radiusorder123
+        run: |
+          gradle --no-daemon clean assembleRelease
+
+      - name: Prepare Final APK
+        run: |
+          mkdir -p release
+
+          cp app/build/outputs/apk/release/app-release.apk \
+             release/radius-order-final.apk
+
+          sha256sum release/radius-order-final.apk \
+             > release/SHA256SUMS.txt
+
+          ls -lh release/
+
+      - name: Upload Final APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: radius-order-final-apk
+          path: |
+            release/radius-order-final.apk
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/radius-order-final.apk
+            release/SHA256SUMS.txt
+          generate_release_notes: true
+          name: Radius Order ${{ github.ref_name }}
+          body: |
+            # Radius Order
+
+            Final Android APK release.
+
+            ## APK
+            `radius-order-final.apk`
+
+            ## Build
+            - Android SDK 36
+            - Gradle 9.3.1
+            - JDK 17
+            - Release build
